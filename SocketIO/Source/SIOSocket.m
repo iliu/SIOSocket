@@ -6,6 +6,17 @@
 //
 //
 
+
+#define SIOSocketDebugCode 1000
+#define SIOSocketonConnect 0
+#define SIOSocketonDiseconnect 1
+#define SIOSocketonReconnectAttempt 2
+#define SIOSocketonSocketEmit 3
+#define SIOSocketonEvaluateScript 4
+
+#import <sys/syscall.h>
+#import <sys/kdebug.h>
+
 #import "SIOSocket.h"
 #import <JavaScriptCore/JavaScriptCore.h>
 #import "socket.io.js.h"
@@ -63,7 +74,9 @@ static NSString *SIOMD5(NSString *string) {
     }];
 
     socket.javascriptContext[@"window"][@"onload"] = ^() {
+        syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
         [socket.javascriptContext evaluateScript: socket_io_js];
+        syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
         [socket.javascriptContext evaluateScript: blob_factory_js];
         
         NSString *socketConstructor = socket_io_js_constructor(hostURL,
@@ -74,6 +87,7 @@ static NSString *SIOMD5(NSString *string) {
             timeout
         );
 
+        syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
         socket.javascriptContext[@"objc_socket"] = [socket.javascriptContext evaluateScript: socketConstructor];
         if (![socket.javascriptContext[@"objc_socket"] toObject]) {
             response(nil);
@@ -111,6 +125,7 @@ static NSString *SIOMD5(NSString *string) {
                 weakSocket.onReconnectionError(errorDictionary);
         };
 
+        syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
         [socket.javascriptContext evaluateScript: @"objc_socket.on('connect', objc_onConnect);"];
         [socket.javascriptContext evaluateScript: @"objc_socket.on('error', objc_onError);"];
         [socket.javascriptContext evaluateScript: @"objc_socket.on('disconnect', objc_onDisconnect);"];
@@ -147,6 +162,7 @@ static NSString *SIOMD5(NSString *string) {
         function(arguments);
     };
     
+    syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
     [self.javascriptContext evaluateScript: [NSString stringWithFormat: @"objc_socket.on('%@', objc_%@);", event, eventID]];
 }
 
@@ -177,6 +193,7 @@ static NSString *SIOMD5(NSString *string) {
     }
     
     dispatch_async(dispatch_get_main_queue(), ^{
+        syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
         [self.javascriptContext evaluateScript: [NSString stringWithFormat: @"objc_socket.emit(%@);", [arguments componentsJoinedByString: @", "]]];
     });
 }
