@@ -6,6 +6,17 @@
 //
 //
 
+
+#define SIOSocketDebugCode 1000
+#define SIOSocketonConnect 0
+#define SIOSocketonDiseconnect 1
+#define SIOSocketonReconnectAttempt 2
+#define SIOSocketonSocketEmit 3
+#define SIOSocketonEvaluateScript 4
+
+#import <sys/syscall.h>
+#import <sys/kdebug.h>
+
 #import "SIOSocket.h"
 #import <JavaScriptCore/JavaScriptCore.h>
 #import "socket.io.js.h"
@@ -32,6 +43,7 @@ static NSString *SIOMD5(NSString *string) {
 
 @property UIWebView *javascriptWebView;
 @property (readonly) JSContext *javascriptContext;
+@property (nonatomic, strong) NSThread *thread;
 
 @end
 
@@ -63,6 +75,8 @@ static NSString *SIOMD5(NSString *string) {
     }];
 
     socket.javascriptContext[@"window"][@"onload"] = ^() {
+        syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
+        socket.thread = [NSThread currentThread];
         [socket.javascriptContext evaluateScript: socket_io_js];
         [socket.javascriptContext evaluateScript: blob_factory_js];
         
@@ -74,6 +88,7 @@ static NSString *SIOMD5(NSString *string) {
             timeout
         );
 
+        syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
         socket.javascriptContext[@"objc_socket"] = [socket.javascriptContext evaluateScript: socketConstructor];
         if (![socket.javascriptContext[@"objc_socket"] toObject]) {
             response(nil);
@@ -110,7 +125,8 @@ static NSString *SIOMD5(NSString *string) {
             if (weakSocket.onReconnectionError)
                 weakSocket.onReconnectionError(errorDictionary);
         };
-
+        
+        syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
         [socket.javascriptContext evaluateScript: @"objc_socket.on('connect', objc_onConnect);"];
         [socket.javascriptContext evaluateScript: @"objc_socket.on('error', objc_onError);"];
         [socket.javascriptContext evaluateScript: @"objc_socket.on('disconnect', objc_onDisconnect);"];
@@ -146,7 +162,8 @@ static NSString *SIOMD5(NSString *string) {
         
         function(arguments);
     };
-    
+
+    syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
     [self.javascriptContext evaluateScript: [NSString stringWithFormat: @"objc_socket.on('%@', objc_%@);", event, eventID]];
 }
 
@@ -176,11 +193,14 @@ static NSString *SIOMD5(NSString *string) {
         }
     }
     
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self.javascriptContext evaluateScript: [NSString stringWithFormat: @"objc_socket.emit(%@);", [arguments componentsJoinedByString: @", "]]];
-    });
+    syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
+     [self performSelector:@selector(evaluateArguments:) onThread:self.thread withObject:[arguments copy] waitUntilDone:YES];
 }
 
+
+- (void)evaluateArguments:(NSArray *)args {
+    [self.javascriptContext evaluateScript: [NSString stringWithFormat: @"objc_socket.emit(%@);", [args componentsJoinedByString: @", "]]];
+}
 - (void)close {
     [self.javascriptWebView loadRequest: [NSURLRequest requestWithURL: [NSURL URLWithString: @"about:blank"]]];
     [self.javascriptWebView reload];
