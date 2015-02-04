@@ -43,6 +43,7 @@ static NSString *SIOMD5(NSString *string) {
 
 @property UIWebView *javascriptWebView;
 @property (readonly) JSContext *javascriptContext;
+@property (nonatomic, strong) NSThread *thread;
 
 @end
 
@@ -75,6 +76,7 @@ static NSString *SIOMD5(NSString *string) {
 
     socket.javascriptContext[@"window"][@"onload"] = ^() {
         syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
+        socket.thread = [NSThread currentThread];
         [socket.javascriptContext evaluateScript: socket_io_js];
         [socket.javascriptContext evaluateScript: blob_factory_js];
         
@@ -191,12 +193,14 @@ static NSString *SIOMD5(NSString *string) {
         }
     }
     
-//    dispatch_async(dispatch_get_main_queue(), ^{
-        syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
-        [self.javascriptContext evaluateScript: [NSString stringWithFormat: @"objc_socket.emit(%@);", [arguments componentsJoinedByString: @", "]]];
-//    });
+    syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
+     [self performSelector:@selector(evaluateArguments:) onThread:self.thread withObject:[arguments copy] waitUntilDone:YES];
 }
 
+
+- (void)evaluateArguments:(NSArray *)args {
+    [self.javascriptContext evaluateScript: [NSString stringWithFormat: @"objc_socket.emit(%@);", [args componentsJoinedByString: @", "]]];
+}
 - (void)close {
     [self.javascriptWebView loadRequest: [NSURLRequest requestWithURL: [NSURL URLWithString: @"about:blank"]]];
     [self.javascriptWebView reload];
