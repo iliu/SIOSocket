@@ -7,6 +7,8 @@
 //
 
 
+#if (TARGET_IPHONE_SIMULATOR)
+
 #define SIOSocketDebugCode 1000
 #define SIOSocketonConnect 0
 #define SIOSocketonDiseconnect 1
@@ -16,6 +18,8 @@
 
 #import <sys/syscall.h>
 #import <sys/kdebug.h>
+
+#endif
 
 #import "SIOSocket.h"
 #import <JavaScriptCore/JavaScriptCore.h>
@@ -75,7 +79,9 @@ static NSString *SIOMD5(NSString *string) {
     }];
 
     socket.javascriptContext[@"window"][@"onload"] = ^() {
+#if (TARGET_IPHONE_SIMULATOR)
         syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
+#endif
         socket.thread = [NSThread currentThread];
         [socket.javascriptContext evaluateScript: socket_io_js];
         [socket.javascriptContext evaluateScript: blob_factory_js];
@@ -88,7 +94,9 @@ static NSString *SIOMD5(NSString *string) {
             timeout
         );
 
+#if (TARGET_IPHONE_SIMULATOR)
         syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
+#endif
         socket.javascriptContext[@"objc_socket"] = [socket.javascriptContext evaluateScript: socketConstructor];
         if (![socket.javascriptContext[@"objc_socket"] toObject]) {
             response(nil);
@@ -125,8 +133,10 @@ static NSString *SIOMD5(NSString *string) {
             if (weakSocket.onReconnectionError)
                 weakSocket.onReconnectionError(errorDictionary);
         };
-        
+
+#if (TARGET_IPHONE_SIMULATOR)
         syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
+#endif
         [socket.javascriptContext evaluateScript: @"objc_socket.on('connect', objc_onConnect);"];
         [socket.javascriptContext evaluateScript: @"objc_socket.on('error', objc_onError);"];
         [socket.javascriptContext evaluateScript: @"objc_socket.on('disconnect', objc_onDisconnect);"];
@@ -163,7 +173,9 @@ static NSString *SIOMD5(NSString *string) {
         function(arguments);
     };
 
+#if (TARGET_IPHONE_SIMULATOR)
     syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
+#endif
     [self.javascriptContext evaluateScript: [NSString stringWithFormat: @"objc_socket.on('%@', objc_%@);", event, eventID]];
 }
 
@@ -192,8 +204,9 @@ static NSString *SIOMD5(NSString *string) {
             [arguments addObject: [[NSString alloc] initWithData: [NSJSONSerialization dataWithJSONObject: arg options: 0 error: nil] encoding: NSUTF8StringEncoding]];
         }
     }
-    
+#if (TARGET_IPHONE_SIMULATOR)
     syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, SIOSocketDebugCode) | DBG_FUNC_NONE, SIOSocketonEvaluateScript, 0, 0, 0);
+#endif
      [self performSelector:@selector(evaluateArguments:) onThread:self.thread withObject:[arguments copy] waitUntilDone:YES];
 }
 
